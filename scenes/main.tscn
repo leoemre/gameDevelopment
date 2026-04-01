@@ -1,8 +1,10 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/fighter.gd" id="2_fighter"]
 [ext_resource type="Script" path="res://scripts/health_bar.gd" id="3_hb"]
+[ext_resource type="Script" path="res://scripts/background_tiles.gd" id="4_bgtiles"]
+[ext_resource type="Script" path="res://scripts/floor_tiles.gd" id="5_floortiles"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_body1"]
 size = Vector2(30, 75)
@@ -38,6 +40,7 @@ script = ExtResource("1_main")
 offset_right = 1280.0
 offset_bottom = 720.0
 color = Color(0.12, 0.12, 0.18, 1)
+script = ExtResource("4_bgtiles")
 
 [node name="ArenaFloor" type="ColorRect" parent="."]
 offset_left = 0.0
@@ -45,6 +48,7 @@ offset_top = 580.0
 offset_right = 1280.0
 offset_bottom = 720.0
 color = Color(0.25, 0.22, 0.2, 1)
+script = ExtResource("5_floortiles")
 
 [node name="ArenaLine" type="ColorRect" parent="."]
 offset_left = 0.0
