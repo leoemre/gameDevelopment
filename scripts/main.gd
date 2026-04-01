@@ -8,8 +8,8 @@ extends Node2D
 @onready var info_label: Label = $UI/InfoLabel
 @onready var restart_timer: Timer = $RestartTimer
 
-const P1_START = Vector2(300, 500)
-const P2_START = Vector2(980, 500)
+const P1_START = Vector2(300, 560)
+const P2_START = Vector2(980, 560)
 
 var round_number: int = 1
 var p1_wins: int = 0
