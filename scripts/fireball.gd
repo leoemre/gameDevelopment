@@ -4,17 +4,16 @@ var direction: float = 1.0
 var speed: float = 500.0
 var damage: int = 40
 var owner_id: int = 0
-var fireball_color: Color = Color.ORANGE
 var lifetime: float = 3.0
 var particles: Array = []
+var has_hit: bool = false
 
 const PARTICLE_GRAVITY: float = 80.0
 
-func _ready() -> void:
-	# Connect body detection
-	body_entered.connect(_on_body_entered)
-
 func _physics_process(delta: float) -> void:
+	if has_hit:
+		return
+
 	position.x += direction * speed * delta
 	lifetime -= delta
 
@@ -34,6 +33,16 @@ func _physics_process(delta: float) -> void:
 	for i in to_remove:
 		particles.remove_at(i)
 
+	# Poll for overlapping bodies every frame (more reliable than signal)
+	var bodies = get_overlapping_bodies()
+	for body in bodies:
+		if body is CharacterBody2D and body.has_method("take_fireball_damage"):
+			if body.player_id != owner_id:
+				has_hit = true
+				body.take_fireball_damage(damage, direction)
+				queue_free()
+				return
+
 	if lifetime <= 0:
 		queue_free()
 
@@ -50,17 +59,6 @@ func _spawn_trail_particle() -> void:
 		"size": randf_range(3.0, 7.0)
 	})
 
-func _on_body_entered(body: Node2D) -> void:
-	if body is CharacterBody2D and body.has_method("take_fireball_damage"):
-		if body.player_id != owner_id:
-			body.take_fireball_damage(damage, direction)
-			_explode()
-			queue_free()
-
-func _explode() -> void:
-	# The explosion effect is handled by the hit fighter's blood system
-	pass
-
 func _draw() -> void:
 	# Draw trail particles first
 	for p in particles:
@@ -68,7 +66,6 @@ func _draw() -> void:
 		var alpha := clampf(life_ratio, 0.0, 1.0)
 		var sz: float = p["size"] as float
 		var pos: Vector2 = p["pos"] as Vector2
-		# Orange/yellow fading trail
 		draw_circle(pos, sz * life_ratio, Color(1.0, 0.5, 0.0, alpha * 0.6))
 		draw_circle(pos, sz * life_ratio * 0.5, Color(1.0, 0.8, 0.2, alpha * 0.8))
 
@@ -81,7 +78,7 @@ func _draw() -> void:
 	# Hot core
 	draw_circle(Vector2.ZERO, 4.0, Color(1.0, 1.0, 0.8, 1.0))
 
-	# Flickering flames on edges
+	# Flickering flames
 	var t := Time.get_ticks_msec() * 0.01
 	for i in 5:
 		var angle := t + i * 1.25

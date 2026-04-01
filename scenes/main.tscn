@@ -1,8 +1,9 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/fighter.gd" id="2_fighter"]
 [ext_resource type="Script" path="res://scripts/health_bar.gd" id="3_hb"]
+[ext_resource type="Script" path="res://scripts/ring_drawer.gd" id="4_ring"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_body1"]
 size = Vector2(30, 75)
@@ -45,6 +46,9 @@ offset_top = 634.0
 offset_right = 1280.0
 offset_bottom = 720.0
 color = Color(0.08, 0.08, 0.12, 1)
+
+[node name="Ring" type="Node2D" parent="."]
+script = ExtResource("4_ring")
 
 [node name="FloorBody" type="StaticBody2D" parent="."]
 position = Vector2(640, 580)
