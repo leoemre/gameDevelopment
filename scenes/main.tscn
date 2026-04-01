@@ -1,9 +1,10 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/fighter.gd" id="2_fighter"]
 [ext_resource type="Script" path="res://scripts/health_bar.gd" id="3_hb"]
 [ext_resource type="Script" path="res://scripts/ring_drawer.gd" id="4_ring"]
+[ext_resource type="Script" path="res://scripts/fighter_visual.gd" id="5_visual"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_body1"]
 size = Vector2(30, 75)
@@ -79,6 +80,9 @@ position = Vector2(0, -37)
 [node name="HurtShape" type="CollisionShape2D" parent="Player1/Hurtbox"]
 shape = SubResource("RectangleShape2D_hurt1")
 
+[node name="Visual" type="Node2D" parent="Player1"]
+script = ExtResource("5_visual")
+
 [node name="Player2" type="CharacterBody2D" parent="."]
 position = Vector2(880, 560)
 script = ExtResource("2_fighter")
@@ -101,6 +105,9 @@ position = Vector2(0, -37)
 
 [node name="HurtShape" type="CollisionShape2D" parent="Player2/Hurtbox"]
 shape = SubResource("RectangleShape2D_hurt2")
+
+[node name="Visual" type="Node2D" parent="Player2"]
+script = ExtResource("5_visual")
 
 [node name="UI" type="CanvasLayer" parent="."]
 
