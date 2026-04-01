@@ -19,6 +19,11 @@ const ATTACK_COOLDOWN: float = 0.15
 const KNOCKBACK_FORCE: float = 400.0
 const HIT_STUN_DURATION: float = 0.2
 
+# Fireball
+const FIREBALL_DAMAGE: int = 40
+const STAMINA_MAX: float = 100.0
+const STAMINA_REGEN_RATE: float = 20.0  # per second
+
 # State
 var health: int
 var facing_right: bool = true
@@ -30,6 +35,10 @@ var hit_stun_timer: float = 0.0
 var is_dead: bool = false
 var opponent: CharacterBody2D = null
 var flash_timer: float = 0.0
+var is_crouching: bool = false
+var stamina: float = STAMINA_MAX
+var is_firing_special: bool = false
+var fireball_anim_timer: float = 0.0
 
 # Animation state (0.0 = idle, 1.0 = full extension)
 var attack_anim_progress: float = 0.0
@@ -91,6 +100,16 @@ func _physics_process(delta: float) -> void:
 	if flash_timer > 0:
 		flash_timer -= delta
 
+	# Stamina regen
+	if stamina < STAMINA_MAX:
+		stamina = minf(stamina + STAMINA_REGEN_RATE * delta, STAMINA_MAX)
+
+	# Fireball anim
+	if is_firing_special:
+		fireball_anim_timer -= delta
+		if fireball_anim_timer <= 0:
+			is_firing_special = false
+
 	# Attack timer and animation
 	if is_attacking:
 		attack_timer -= delta
@@ -116,7 +135,8 @@ func _physics_process(delta: float) -> void:
 		velocity.y += gravity * delta
 
 	# Movement (disabled during attack or hit stun)
-	if not is_attacking and hit_stun_timer <= 0:
+	is_crouching = false
+	if not is_attacking and not is_firing_special and hit_stun_timer <= 0:
 		var direction := 0.0
 		if Input.is_action_pressed(input_left):
 			direction -= 1.0
@@ -133,17 +153,23 @@ func _physics_process(delta: float) -> void:
 		if Input.is_action_just_pressed(input_up) and is_on_floor():
 			velocity.y = jump_force
 
-		# Crouch (slow down)
+		# Crouch (slow down + dodge fireballs)
 		if Input.is_action_pressed(input_down) and is_on_floor():
 			velocity.x *= 0.3
-	elif is_attacking:
+			is_crouching = true
+	elif is_attacking or is_firing_special:
 		velocity.x *= 0.8
 
-	# Attack inputs
-	if not is_attacking and cooldown_timer <= 0 and hit_stun_timer <= 0:
-		if Input.is_action_just_pressed(input_punch):
+	# Attack inputs - special (both) checked first
+	if not is_attacking and not is_firing_special and cooldown_timer <= 0 and hit_stun_timer <= 0:
+		var punch_pressed := Input.is_action_just_pressed(input_punch)
+		var kick_pressed := Input.is_action_just_pressed(input_kick)
+		if (punch_pressed and Input.is_action_pressed(input_kick)) or \
+		   (kick_pressed and Input.is_action_pressed(input_punch)):
+			_try_fireball()
+		elif punch_pressed:
 			_start_attack("punch")
-		elif Input.is_action_just_pressed(input_kick):
+		elif kick_pressed:
 			_start_attack("kick")
 
 	move_and_slide()
@@ -207,6 +233,27 @@ func _die() -> void:
 	velocity = Vector2.ZERO
 	emit_signal("player_died", player_id)
 
+func _try_fireball() -> void:
+	if stamina < STAMINA_MAX:
+		return
+	stamina = 0.0
+	is_firing_special = true
+	fireball_anim_timer = 0.35
+	get_tree().create_timer(0.15).timeout.connect(func():
+		var fireball_scene = load("res://scenes/fireball.tscn")
+		var fb = fireball_scene.instantiate()
+		fb.direction = 1.0 if facing_right else -1.0
+		fb.damage = FIREBALL_DAMAGE
+		fb.owner_id = player_id
+		fb.global_position = global_position + Vector2((30.0 if facing_right else -30.0), -40.0)
+		get_parent().add_child(fb)
+	)
+
+func take_fireball_damage(damage: int, dir: float) -> void:
+	if is_crouching:
+		return
+	take_damage(damage, dir)
+
 func reset(start_pos: Vector2, face_right: bool) -> void:
 	global_position = start_pos
 	velocity = Vector2.ZERO
@@ -217,6 +264,10 @@ func reset(start_pos: Vector2, face_right: bool) -> void:
 	cooldown_timer = 0.0
 	hit_stun_timer = 0.0
 	flash_timer = 0.0
+	is_crouching = false
+	stamina = STAMINA_MAX
+	is_firing_special = false
+	fireball_anim_timer = 0.0
 	attack_anim_progress = 0.0
 	facing_right = face_right
 	emit_signal("health_changed", health, max_health)
@@ -313,7 +364,14 @@ func _draw() -> void:
 	var left_hand: Vector2
 	var right_hand: Vector2
 
-	if is_attacking and attack_type == "punch":
+	if is_firing_special:
+		# Both arms thrust forward for fireball
+		var thrust := 30.0
+		right_elbow = Vector2(dir * 14.0, SHOULDER_Y - 6.0)
+		right_hand = Vector2(dir * (15.0 + thrust), SHOULDER_Y - 10.0)
+		left_elbow = Vector2(dir * 10.0, SHOULDER_Y - 2.0)
+		left_hand = Vector2(dir * (12.0 + thrust), SHOULDER_Y - 8.0)
+	elif is_attacking and attack_type == "punch":
 		# Punching arm (front arm) extends forward
 		var punch_extend := attack_anim_progress * 40.0
 		var punch_lift := attack_anim_progress * 8.0
@@ -347,6 +405,14 @@ func _draw() -> void:
 	if is_attacking and attack_type == "punch" and attack_anim_progress > 0.5:
 		var impact_pos := right_hand + Vector2(dir * 6.0, 0)
 		draw_circle(impact_pos, 5.0 * attack_anim_progress, Color(1, 1, 1, 0.6 * attack_anim_progress))
+
+	# Fireball glow on hands
+	if is_firing_special:
+		var mid := (right_hand + left_hand) * 0.5
+		var pulse := (sin(Time.get_ticks_msec() * 0.03) + 1.0) * 0.5
+		draw_circle(mid, 12.0 + pulse * 3.0, Color(1, 0.5, 0, 0.3))
+		draw_circle(mid, 6.0 + pulse * 2.0, Color(1, 0.8, 0.2, 0.5))
+		draw_circle(mid, 3.0, Color(1, 1, 0.8, 0.8))
 
 	# Sleeve cuffs on shoulders
 	_draw_limb(left_shoulder, left_shoulder + Vector2((-3.0) * dir, 4.0), body_color, LIMB_WIDTH + 2)
@@ -405,6 +471,14 @@ func _draw() -> void:
 		Vector2(0, indicator_y)
 	])
 	draw_colored_polygon(tri, indicator_color)
+
+	# Stamina bar
+	if not is_dead:
+		var stam_y := indicator_y - 10.0
+		var stam_ratio := stamina / STAMINA_MAX
+		draw_rect(Rect2(-10, stam_y, 20, 3), Color(0.2, 0.2, 0.2, 0.8))
+		var sc := Color(0.2, 0.8, 1.0) if stam_ratio > 0.99 else Color(0.4, 0.4, 0.4)
+		draw_rect(Rect2(-10, stam_y, 20 * stam_ratio, 3), sc)
 
 func _draw_limb(from: Vector2, to: Vector2, color: Color, width: float) -> void:
 	draw_line(from, to, color, width, true)

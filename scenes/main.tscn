@@ -209,7 +209,7 @@ offset_top = 660.0
 offset_right = 940.0
 offset_bottom = 710.0
 theme_override_font_sizes/font_size = 14
-text = "P1: WASD move/jump | F punch | G kick     P2: Arrows move/jump | K punch | L kick     ESC quit"
+text = "P1: WASD move | F punch | G kick | F+G fireball     P2: Arrows move | K punch | L kick | K+L fireball     Crouch dodges fireballs!"
 horizontal_alignment = 1
 
 [node name="RestartTimer" type="Timer" parent="."]

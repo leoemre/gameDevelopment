@@ -33,6 +33,10 @@ func _ready() -> void:
 
 func _start_round() -> void:
 	game_active = true
+	# Clean up fireballs
+	for child in get_children():
+		if child is Area2D:
+			child.queue_free()
 	player1.reset(P1_START, true)
 	player2.reset(P2_START, false)
 	round_label.text = "Round " + str(round_number)
