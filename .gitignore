@@ -1,0 +1,13 @@
+# Godot 4+ specific ignores
+.godot/
+*.import
+
+# Exported builds
+export/
+*.exe
+*.x86_64
+*.pck
+
+# OS files
+.DS_Store
+Thumbs.db
