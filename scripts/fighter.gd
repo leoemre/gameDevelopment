@@ -302,63 +302,29 @@ func _draw() -> void:
 		pants_color = fighter_color.darkened(0.3)
 		outline_color = fighter_color.darkened(0.5)
 
-	# Crouch offset — upper body drops, feet stay planted
-	var crouch_drop := 0.0
-	var crouch_spread := 0.0
-	var crouch_lean := 0.0
-	if is_crouching:
-		crouch_drop = 18.0
-		crouch_spread = 12.0
-		crouch_lean = 3.0 * dir
-	var bo_x := crouch_lean  # body offset x
-	var bo_y := crouch_drop  # body offset y
-
 	# Idle walk cycle hint: slight arm/leg sway based on velocity
 	var walk_phase := 0.0
-	if is_on_floor() and abs(velocity.x) > 10 and not is_crouching:
+	if is_on_floor() and abs(velocity.x) > 10:
 		walk_phase = sin(Time.get_ticks_msec() * 0.01) * 0.3
 
 	# ── LEGS ──
-	var left_hip := Vector2(-5.0 * dir + bo_x, HIP_Y + bo_y)
-	var right_hip := Vector2(5.0 * dir + bo_x, HIP_Y + bo_y)
+	var left_hip := Vector2(-5.0 * dir, HIP_Y)
+	var right_hip := Vector2(5.0 * dir, HIP_Y)
 	var left_knee: Vector2
 	var right_knee: Vector2
 	var left_foot: Vector2
 	var right_foot: Vector2
 
 	if is_attacking and attack_type == "kick":
-		# Realistic 3-phase kick:
-		# Phase 1 (0-0.25): Chamber - knee lifts up toward chest
-		# Phase 2 (0.25-0.6): Snap - lower leg extends outward from knee
-		# Phase 3 (0.6-1.0): Retract - leg pulls back
-		var p := attack_anim_progress
-		var chamber := clampf(p / 0.25, 0.0, 1.0)
-		var snap := clampf((p - 0.25) / 0.35, 0.0, 1.0)
-		var retract := clampf((p - 0.6) / 0.4, 0.0, 1.0)
-
-		# Knee rises up and forward during chamber, stays during snap, lowers on retract
-		var knee_up := chamber * 22.0 - retract * 16.0
-		var knee_fwd := chamber * 12.0 + snap * 8.0 - retract * 14.0
-		# Foot: tucked behind knee during chamber, snaps straight out, retracts
-		var foot_fwd := snap * 42.0 - retract * 32.0
-		var foot_up := chamber * 20.0 - retract * 14.0
-		# During chamber, foot tucks up near knee (bent leg)
-		var foot_tuck_back := (1.0 - snap) * chamber * 10.0
-
-		right_knee = Vector2(dir * (6.0 + knee_fwd), KNEE_Y - knee_up)
-		right_foot = Vector2(
-			dir * (6.0 + knee_fwd + foot_fwd - foot_tuck_back),
-			KNEE_Y - foot_up + (1.0 - snap) * 4.0
-		)
-		# Support leg bends slightly for balance
-		left_knee = Vector2((-4.0 - chamber * 2.0) * dir, KNEE_Y + chamber * 3.0)
-		left_foot = Vector2(-5.0 * dir, FOOT_Y)
-	elif is_crouching:
-		# Crouching: knees bend outward, feet planted wider
-		left_knee = Vector2((-8.0 - crouch_spread) * dir + bo_x, KNEE_Y + bo_y * 0.5)
-		left_foot = Vector2(-7.0 * dir, FOOT_Y)
-		right_knee = Vector2((8.0 + crouch_spread) * dir + bo_x, KNEE_Y + bo_y * 0.5)
-		right_foot = Vector2(7.0 * dir, FOOT_Y)
+		# Kicking leg (front leg) extends forward
+		var kick_extend := attack_anim_progress * 45.0
+		var kick_lift := attack_anim_progress * 12.0
+		# Front leg kicks
+		right_knee = Vector2(dir * (8.0 + kick_extend * 0.4), KNEE_Y - kick_lift * 0.5)
+		right_foot = Vector2(dir * (10.0 + kick_extend), KNEE_Y - kick_lift)
+		# Back leg stays planted
+		left_knee = Vector2(-3.0 * dir, KNEE_Y)
+		left_foot = Vector2(-4.0 * dir, FOOT_Y)
 	else:
 		# Normal legs with walk cycle
 		left_knee = Vector2((-3.0 + walk_phase * 4.0) * dir, KNEE_Y)
@@ -375,55 +341,48 @@ func _draw() -> void:
 	_draw_limb(right_knee, right_foot, pants_color, LIMB_WIDTH)
 	draw_circle(right_foot, FOOT_RADIUS, shoe_color)
 
-	# Kick impact effect - peaks during the snap phase
-	if is_attacking and attack_type == "kick" and attack_anim_progress > 0.3 and attack_anim_progress < 0.7:
+	# Kick impact effect
+	if is_attacking and attack_type == "kick" and attack_anim_progress > 0.5:
 		var impact_pos := right_foot + Vector2(dir * 6.0, 0)
-		var strength := 1.0 - abs(attack_anim_progress - 0.5) / 0.2
-		strength = clampf(strength, 0.0, 1.0)
-		draw_circle(impact_pos, 7.0 * strength, Color(1, 0.9, 0.2, 0.6 * strength))
-		# Speed lines behind the foot during snap
-		if strength > 0.3:
-			for i in 3:
-				var lx := right_foot.x - dir * (8.0 + i * 7.0)
-				draw_line(Vector2(lx, right_foot.y - 1), Vector2(lx - dir * 10.0, right_foot.y - 1), Color(1, 1, 1, 0.25 * strength), 1.5)
+		draw_circle(impact_pos, 6.0 * attack_anim_progress, Color(1, 0.9, 0.2, 0.7 * attack_anim_progress))
 
 	# ── TORSO ──
-	var torso_rect := Rect2(-TORSO_HALF_W + bo_x, TORSO_TOP + bo_y, TORSO_HALF_W * 2, TORSO_BOTTOM - TORSO_TOP)
+	var torso_rect := Rect2(-TORSO_HALF_W, TORSO_TOP, TORSO_HALF_W * 2, TORSO_BOTTOM - TORSO_TOP)
 	draw_rect(torso_rect, body_color)
+	# Torso outline
 	draw_rect(torso_rect, outline_color, false, 1.5)
 
 	# Belt
-	var belt_rect := Rect2(-TORSO_HALF_W - 1 + bo_x, TORSO_BOTTOM - 3 + bo_y, TORSO_HALF_W * 2 + 2, 3)
+	var belt_rect := Rect2(-TORSO_HALF_W - 1, TORSO_BOTTOM - 3, TORSO_HALF_W * 2 + 2, 3)
 	draw_rect(belt_rect, outline_color)
 
 	# ── ARMS ──
-	var left_shoulder := Vector2(-TORSO_HALF_W * dir + bo_x, SHOULDER_Y + bo_y)
-	var right_shoulder := Vector2(TORSO_HALF_W * dir + bo_x, SHOULDER_Y + bo_y)
+	var left_shoulder := Vector2(-TORSO_HALF_W * dir, SHOULDER_Y)
+	var right_shoulder := Vector2(TORSO_HALF_W * dir, SHOULDER_Y)
 	var left_elbow: Vector2
 	var right_elbow: Vector2
 	var left_hand: Vector2
 	var right_hand: Vector2
 
 	if is_firing_special:
+		# Both arms thrust forward for fireball
 		var thrust := 30.0
-		right_elbow = Vector2(dir * 14.0 + bo_x, SHOULDER_Y - 6.0 + bo_y)
-		right_hand = Vector2(dir * (15.0 + thrust) + bo_x, SHOULDER_Y - 10.0 + bo_y)
-		left_elbow = Vector2(dir * 10.0 + bo_x, SHOULDER_Y - 2.0 + bo_y)
-		left_hand = Vector2(dir * (12.0 + thrust) + bo_x, SHOULDER_Y - 8.0 + bo_y)
+		right_elbow = Vector2(dir * 14.0, SHOULDER_Y - 6.0)
+		right_hand = Vector2(dir * (15.0 + thrust), SHOULDER_Y - 10.0)
+		left_elbow = Vector2(dir * 10.0, SHOULDER_Y - 2.0)
+		left_hand = Vector2(dir * (12.0 + thrust), SHOULDER_Y - 8.0)
 	elif is_attacking and attack_type == "punch":
+		# Punching arm (front arm) extends forward
 		var punch_extend := attack_anim_progress * 40.0
 		var punch_lift := attack_anim_progress * 8.0
-		right_elbow = Vector2(dir * (12.0 + punch_extend * 0.3) + bo_x, SHOULDER_Y - punch_lift * 0.3 + bo_y)
-		right_hand = Vector2(dir * (15.0 + punch_extend) + bo_x, SHOULDER_Y - punch_lift + bo_y)
-		left_elbow = Vector2(-dir * 6.0 + bo_x, SHOULDER_Y + 8.0 + bo_y)
-		left_hand = Vector2(-dir * 4.0 + bo_x, SHOULDER_Y + 4.0 + bo_y)
-	elif is_crouching:
-		# Guard position - fists up near face
-		left_elbow = Vector2(-8.0 * dir + bo_x, SHOULDER_Y + 6.0 + bo_y)
-		left_hand = Vector2(-5.0 * dir + bo_x, SHOULDER_Y + 1.0 + bo_y)
-		right_elbow = Vector2(8.0 * dir + bo_x, SHOULDER_Y + 6.0 + bo_y)
-		right_hand = Vector2(5.0 * dir + bo_x, SHOULDER_Y + 1.0 + bo_y)
+		# Front arm punches straight out
+		right_elbow = Vector2(dir * (12.0 + punch_extend * 0.3), SHOULDER_Y - punch_lift * 0.3)
+		right_hand = Vector2(dir * (15.0 + punch_extend), SHOULDER_Y - punch_lift)
+		# Back arm pulls back (guard position)
+		left_elbow = Vector2(-dir * 6.0, SHOULDER_Y + 8.0)
+		left_hand = Vector2(-dir * 4.0, SHOULDER_Y + 4.0)
 	else:
+		# Normal arms with walk cycle
 		left_elbow = Vector2((-12.0 - walk_phase * 3.0) * dir, SHOULDER_Y + 12.0)
 		left_hand = Vector2((-10.0 - walk_phase * 6.0) * dir, SHOULDER_Y + 22.0)
 		right_elbow = Vector2((12.0 + walk_phase * 3.0) * dir, SHOULDER_Y + 12.0)
@@ -460,10 +419,10 @@ func _draw() -> void:
 	_draw_limb(right_shoulder, right_shoulder + Vector2((3.0) * dir, 4.0), body_color, LIMB_WIDTH + 2)
 
 	# ── NECK ──
-	draw_line(Vector2(bo_x, NECK_TOP + bo_y), Vector2(bo_x, SHOULDER_Y + bo_y), skin_color, 4.0)
+	draw_line(Vector2(0, NECK_TOP), Vector2(0, SHOULDER_Y), skin_color, 4.0)
 
 	# ── HEAD ──
-	var head_center := Vector2(bo_x, HEAD_Y + bo_y)
+	var head_center := Vector2(0, HEAD_Y)
 	# Head
 	draw_circle(head_center, HEAD_RADIUS, skin_color)
 	# Head outline
@@ -472,39 +431,44 @@ func _draw() -> void:
 	var hair_color := outline_color if not is_dead and flash_timer <= 0 else skin_color
 	draw_arc(head_center, HEAD_RADIUS, PI * 0.8, PI * 2.2, 12, hair_color, 3.0)
 
-	# Eyes (relative to head_center)
-	var hx := head_center.x
-	var hy := head_center.y
+	# Eyes
 	if not is_dead and flash_timer <= 0:
 		var eye_offset_x := 3.5 * dir
-		var eye_y := hy - 1.0
-		draw_circle(Vector2(hx + eye_offset_x - 1.5 * dir, eye_y), 1.5, Color.WHITE)
-		draw_circle(Vector2(hx + eye_offset_x + 1.5 * dir, eye_y), 1.5, Color.WHITE)
-		draw_circle(Vector2(hx + eye_offset_x - 1.5 * dir + dir * 0.5, eye_y), 0.8, Color.BLACK)
-		draw_circle(Vector2(hx + eye_offset_x + 1.5 * dir + dir * 0.5, eye_y), 0.8, Color.BLACK)
+		var eye_y := HEAD_Y - 1.0
+		draw_circle(Vector2(eye_offset_x - 1.5 * dir, eye_y), 1.5, Color.WHITE)
+		draw_circle(Vector2(eye_offset_x + 1.5 * dir, eye_y), 1.5, Color.WHITE)
+		# Pupils look toward opponent
+		var pupil_dir := dir
+		draw_circle(Vector2(eye_offset_x - 1.5 * dir + pupil_dir * 0.5, eye_y), 0.8, Color.BLACK)
+		draw_circle(Vector2(eye_offset_x + 1.5 * dir + pupil_dir * 0.5, eye_y), 0.8, Color.BLACK)
 
+		# Mouth - determined by state
 		if is_attacking:
-			draw_circle(Vector2(hx + 2.0 * dir, hy + 4.0), 2.0, Color(0.6, 0.2, 0.2))
+			# Open mouth (yelling)
+			draw_circle(Vector2(2.0 * dir, HEAD_Y + 4.0), 2.0, Color(0.6, 0.2, 0.2))
 		elif hit_stun_timer > 0:
-			draw_line(Vector2(hx - 1.0 * dir, hy + 4.0), Vector2(hx + 3.0 * dir, hy + 5.0), Color(0.6, 0.2, 0.2), 1.5)
+			# Ouch face
+			draw_line(Vector2(-1.0 * dir, HEAD_Y + 4.0), Vector2(3.0 * dir, HEAD_Y + 5.0), Color(0.6, 0.2, 0.2), 1.5)
 		else:
-			draw_arc(Vector2(hx + 2.0 * dir, hy + 3.0), 2.0, 0.2, PI - 0.2, 8, Color(0.6, 0.2, 0.2), 1.0)
+			# Neutral/slight smile
+			draw_arc(Vector2(2.0 * dir, HEAD_Y + 3.0), 2.0, 0.2, PI - 0.2, 8, Color(0.6, 0.2, 0.2), 1.0)
 	elif is_dead:
-		var eye_x := hx + 3.0 * dir
-		var eye_y := hy - 1.0
+		# X eyes
+		var eye_x := 3.0 * dir
+		var eye_y := HEAD_Y - 1.0
 		draw_line(Vector2(eye_x - 2, eye_y - 2), Vector2(eye_x + 2, eye_y + 2), Color.BLACK, 1.5)
 		draw_line(Vector2(eye_x - 2, eye_y + 2), Vector2(eye_x + 2, eye_y - 2), Color.BLACK, 1.5)
-		eye_x = hx - 1.0 * dir
+		eye_x = -1.0 * dir
 		draw_line(Vector2(eye_x - 2, eye_y - 2), Vector2(eye_x + 2, eye_y + 2), Color.BLACK, 1.5)
 		draw_line(Vector2(eye_x - 2, eye_y + 2), Vector2(eye_x + 2, eye_y - 2), Color.BLACK, 1.5)
 
 	# Player indicator (small colored triangle above head)
-	var indicator_y := head_center.y - HEAD_RADIUS - 10.0
+	var indicator_y := HEAD_Y - HEAD_RADIUS - 10.0
 	var indicator_color := fighter_color if flash_timer <= 0 else Color.WHITE
 	var tri := PackedVector2Array([
-		Vector2(head_center.x - 5, indicator_y - 6),
-		Vector2(head_center.x + 5, indicator_y - 6),
-		Vector2(head_center.x, indicator_y)
+		Vector2(-5, indicator_y - 6),
+		Vector2(5, indicator_y - 6),
+		Vector2(0, indicator_y)
 	])
 	draw_colored_polygon(tri, indicator_color)
 
@@ -512,9 +476,9 @@ func _draw() -> void:
 	if not is_dead:
 		var stam_y := indicator_y - 10.0
 		var stam_ratio := stamina / STAMINA_MAX
-		draw_rect(Rect2(head_center.x - 10, stam_y, 20, 3), Color(0.2, 0.2, 0.2, 0.8))
+		draw_rect(Rect2(-10, stam_y, 20, 3), Color(0.2, 0.2, 0.2, 0.8))
 		var sc := Color(0.2, 0.8, 1.0) if stam_ratio > 0.99 else Color(0.4, 0.4, 0.4)
-		draw_rect(Rect2(head_center.x - 10, stam_y, 20 * stam_ratio, 3), sc)
+		draw_rect(Rect2(-10, stam_y, 20 * stam_ratio, 3), sc)
 
 func _draw_limb(from: Vector2, to: Vector2, color: Color, width: float) -> void:
 	draw_line(from, to, color, width, true)
