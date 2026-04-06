@@ -303,9 +303,13 @@ func _draw() -> void:
 		outline_color = fighter_color.darkened(0.5)
 
 	# Crouch offset — upper body drops, feet stay planted
-	var crouch_drop := 18.0 if is_crouching else 0.0
-	var crouch_spread := 12.0 if is_crouching else 0.0
-	var crouch_lean := (3.0 * dir) if is_crouching else 0.0
+	var crouch_drop := 0.0
+	var crouch_spread := 0.0
+	var crouch_lean := 0.0
+	if is_crouching:
+		crouch_drop = 18.0
+		crouch_spread = 12.0
+		crouch_lean = 3.0 * dir
 	var bo_x := crouch_lean  # body offset x
 	var bo_y := crouch_drop  # body offset y
 
@@ -468,34 +472,29 @@ func _draw() -> void:
 	var hair_color := outline_color if not is_dead and flash_timer <= 0 else skin_color
 	draw_arc(head_center, HEAD_RADIUS, PI * 0.8, PI * 2.2, 12, hair_color, 3.0)
 
-	# Eyes
+	# Eyes (relative to head_center)
+	var hx := head_center.x
+	var hy := head_center.y
 	if not is_dead and flash_timer <= 0:
 		var eye_offset_x := 3.5 * dir
-		var eye_y := HEAD_Y - 1.0
-		draw_circle(Vector2(eye_offset_x - 1.5 * dir, eye_y), 1.5, Color.WHITE)
-		draw_circle(Vector2(eye_offset_x + 1.5 * dir, eye_y), 1.5, Color.WHITE)
-		# Pupils look toward opponent
-		var pupil_dir := dir
-		draw_circle(Vector2(eye_offset_x - 1.5 * dir + pupil_dir * 0.5, eye_y), 0.8, Color.BLACK)
-		draw_circle(Vector2(eye_offset_x + 1.5 * dir + pupil_dir * 0.5, eye_y), 0.8, Color.BLACK)
+		var eye_y := hy - 1.0
+		draw_circle(Vector2(hx + eye_offset_x - 1.5 * dir, eye_y), 1.5, Color.WHITE)
+		draw_circle(Vector2(hx + eye_offset_x + 1.5 * dir, eye_y), 1.5, Color.WHITE)
+		draw_circle(Vector2(hx + eye_offset_x - 1.5 * dir + dir * 0.5, eye_y), 0.8, Color.BLACK)
+		draw_circle(Vector2(hx + eye_offset_x + 1.5 * dir + dir * 0.5, eye_y), 0.8, Color.BLACK)
 
-		# Mouth - determined by state
 		if is_attacking:
-			# Open mouth (yelling)
-			draw_circle(Vector2(2.0 * dir, HEAD_Y + 4.0), 2.0, Color(0.6, 0.2, 0.2))
+			draw_circle(Vector2(hx + 2.0 * dir, hy + 4.0), 2.0, Color(0.6, 0.2, 0.2))
 		elif hit_stun_timer > 0:
-			# Ouch face
-			draw_line(Vector2(-1.0 * dir, HEAD_Y + 4.0), Vector2(3.0 * dir, HEAD_Y + 5.0), Color(0.6, 0.2, 0.2), 1.5)
+			draw_line(Vector2(hx - 1.0 * dir, hy + 4.0), Vector2(hx + 3.0 * dir, hy + 5.0), Color(0.6, 0.2, 0.2), 1.5)
 		else:
-			# Neutral/slight smile
-			draw_arc(Vector2(2.0 * dir, HEAD_Y + 3.0), 2.0, 0.2, PI - 0.2, 8, Color(0.6, 0.2, 0.2), 1.0)
+			draw_arc(Vector2(hx + 2.0 * dir, hy + 3.0), 2.0, 0.2, PI - 0.2, 8, Color(0.6, 0.2, 0.2), 1.0)
 	elif is_dead:
-		# X eyes
-		var eye_x := 3.0 * dir
-		var eye_y := HEAD_Y - 1.0
+		var eye_x := hx + 3.0 * dir
+		var eye_y := hy - 1.0
 		draw_line(Vector2(eye_x - 2, eye_y - 2), Vector2(eye_x + 2, eye_y + 2), Color.BLACK, 1.5)
 		draw_line(Vector2(eye_x - 2, eye_y + 2), Vector2(eye_x + 2, eye_y - 2), Color.BLACK, 1.5)
-		eye_x = -1.0 * dir
+		eye_x = hx - 1.0 * dir
 		draw_line(Vector2(eye_x - 2, eye_y - 2), Vector2(eye_x + 2, eye_y + 2), Color.BLACK, 1.5)
 		draw_line(Vector2(eye_x - 2, eye_y + 2), Vector2(eye_x + 2, eye_y - 2), Color.BLACK, 1.5)
 
