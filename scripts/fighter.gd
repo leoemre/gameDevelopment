@@ -302,29 +302,36 @@ func _draw() -> void:
 		pants_color = fighter_color.darkened(0.3)
 		outline_color = fighter_color.darkened(0.5)
 
+	# Crouch body offset
+	var bo_y := 0.0
+	if is_crouching:
+		bo_y = 18.0
+
 	# Idle walk cycle hint: slight arm/leg sway based on velocity
 	var walk_phase := 0.0
-	if is_on_floor() and abs(velocity.x) > 10:
+	if is_on_floor() and abs(velocity.x) > 10 and not is_crouching:
 		walk_phase = sin(Time.get_ticks_msec() * 0.01) * 0.3
 
 	# ── LEGS ──
-	var left_hip := Vector2(-5.0 * dir, HIP_Y)
-	var right_hip := Vector2(5.0 * dir, HIP_Y)
+	var left_hip := Vector2(-5.0 * dir, HIP_Y + bo_y)
+	var right_hip := Vector2(5.0 * dir, HIP_Y + bo_y)
 	var left_knee: Vector2
 	var right_knee: Vector2
 	var left_foot: Vector2
 	var right_foot: Vector2
 
 	if is_attacking and attack_type == "kick":
-		# Kicking leg (front leg) extends forward
 		var kick_extend := attack_anim_progress * 45.0
 		var kick_lift := attack_anim_progress * 12.0
-		# Front leg kicks
 		right_knee = Vector2(dir * (8.0 + kick_extend * 0.4), KNEE_Y - kick_lift * 0.5)
 		right_foot = Vector2(dir * (10.0 + kick_extend), KNEE_Y - kick_lift)
-		# Back leg stays planted
 		left_knee = Vector2(-3.0 * dir, KNEE_Y)
 		left_foot = Vector2(-4.0 * dir, FOOT_Y)
+	elif is_crouching:
+		left_knee = Vector2(-10.0 * dir, KNEE_Y + bo_y * 0.5)
+		left_foot = Vector2(-7.0 * dir, FOOT_Y)
+		right_knee = Vector2(10.0 * dir, KNEE_Y + bo_y * 0.5)
+		right_foot = Vector2(7.0 * dir, FOOT_Y)
 	else:
 		# Normal legs with walk cycle
 		left_knee = Vector2((-3.0 + walk_phase * 4.0) * dir, KNEE_Y)
@@ -347,42 +354,41 @@ func _draw() -> void:
 		draw_circle(impact_pos, 6.0 * attack_anim_progress, Color(1, 0.9, 0.2, 0.7 * attack_anim_progress))
 
 	# ── TORSO ──
-	var torso_rect := Rect2(-TORSO_HALF_W, TORSO_TOP, TORSO_HALF_W * 2, TORSO_BOTTOM - TORSO_TOP)
+	var torso_rect := Rect2(-TORSO_HALF_W, TORSO_TOP + bo_y, TORSO_HALF_W * 2, TORSO_BOTTOM - TORSO_TOP)
 	draw_rect(torso_rect, body_color)
-	# Torso outline
 	draw_rect(torso_rect, outline_color, false, 1.5)
 
 	# Belt
-	var belt_rect := Rect2(-TORSO_HALF_W - 1, TORSO_BOTTOM - 3, TORSO_HALF_W * 2 + 2, 3)
+	var belt_rect := Rect2(-TORSO_HALF_W - 1, TORSO_BOTTOM - 3 + bo_y, TORSO_HALF_W * 2 + 2, 3)
 	draw_rect(belt_rect, outline_color)
 
 	# ── ARMS ──
-	var left_shoulder := Vector2(-TORSO_HALF_W * dir, SHOULDER_Y)
-	var right_shoulder := Vector2(TORSO_HALF_W * dir, SHOULDER_Y)
+	var left_shoulder := Vector2(-TORSO_HALF_W * dir, SHOULDER_Y + bo_y)
+	var right_shoulder := Vector2(TORSO_HALF_W * dir, SHOULDER_Y + bo_y)
 	var left_elbow: Vector2
 	var right_elbow: Vector2
 	var left_hand: Vector2
 	var right_hand: Vector2
 
 	if is_firing_special:
-		# Both arms thrust forward for fireball
 		var thrust := 30.0
-		right_elbow = Vector2(dir * 14.0, SHOULDER_Y - 6.0)
-		right_hand = Vector2(dir * (15.0 + thrust), SHOULDER_Y - 10.0)
-		left_elbow = Vector2(dir * 10.0, SHOULDER_Y - 2.0)
-		left_hand = Vector2(dir * (12.0 + thrust), SHOULDER_Y - 8.0)
+		right_elbow = Vector2(dir * 14.0, SHOULDER_Y - 6.0 + bo_y)
+		right_hand = Vector2(dir * (15.0 + thrust), SHOULDER_Y - 10.0 + bo_y)
+		left_elbow = Vector2(dir * 10.0, SHOULDER_Y - 2.0 + bo_y)
+		left_hand = Vector2(dir * (12.0 + thrust), SHOULDER_Y - 8.0 + bo_y)
 	elif is_attacking and attack_type == "punch":
-		# Punching arm (front arm) extends forward
 		var punch_extend := attack_anim_progress * 40.0
 		var punch_lift := attack_anim_progress * 8.0
-		# Front arm punches straight out
-		right_elbow = Vector2(dir * (12.0 + punch_extend * 0.3), SHOULDER_Y - punch_lift * 0.3)
-		right_hand = Vector2(dir * (15.0 + punch_extend), SHOULDER_Y - punch_lift)
-		# Back arm pulls back (guard position)
-		left_elbow = Vector2(-dir * 6.0, SHOULDER_Y + 8.0)
-		left_hand = Vector2(-dir * 4.0, SHOULDER_Y + 4.0)
+		right_elbow = Vector2(dir * (12.0 + punch_extend * 0.3), SHOULDER_Y - punch_lift * 0.3 + bo_y)
+		right_hand = Vector2(dir * (15.0 + punch_extend), SHOULDER_Y - punch_lift + bo_y)
+		left_elbow = Vector2(-dir * 6.0, SHOULDER_Y + 8.0 + bo_y)
+		left_hand = Vector2(-dir * 4.0, SHOULDER_Y + 4.0 + bo_y)
+	elif is_crouching:
+		left_elbow = Vector2(-8.0 * dir, SHOULDER_Y + 6.0 + bo_y)
+		left_hand = Vector2(-5.0 * dir, SHOULDER_Y + 1.0 + bo_y)
+		right_elbow = Vector2(8.0 * dir, SHOULDER_Y + 6.0 + bo_y)
+		right_hand = Vector2(5.0 * dir, SHOULDER_Y + 1.0 + bo_y)
 	else:
-		# Normal arms with walk cycle
 		left_elbow = Vector2((-12.0 - walk_phase * 3.0) * dir, SHOULDER_Y + 12.0)
 		left_hand = Vector2((-10.0 - walk_phase * 6.0) * dir, SHOULDER_Y + 22.0)
 		right_elbow = Vector2((12.0 + walk_phase * 3.0) * dir, SHOULDER_Y + 12.0)
@@ -419,10 +425,10 @@ func _draw() -> void:
 	_draw_limb(right_shoulder, right_shoulder + Vector2((3.0) * dir, 4.0), body_color, LIMB_WIDTH + 2)
 
 	# ── NECK ──
-	draw_line(Vector2(0, NECK_TOP), Vector2(0, SHOULDER_Y), skin_color, 4.0)
+	draw_line(Vector2(0, NECK_TOP + bo_y), Vector2(0, SHOULDER_Y + bo_y), skin_color, 4.0)
 
 	# ── HEAD ──
-	var head_center := Vector2(0, HEAD_Y)
+	var head_center := Vector2(0, HEAD_Y + bo_y)
 	# Head
 	draw_circle(head_center, HEAD_RADIUS, skin_color)
 	# Head outline
