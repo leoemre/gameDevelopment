@@ -316,15 +316,32 @@ func _draw() -> void:
 	var right_foot: Vector2
 
 	if is_attacking and attack_type == "kick":
-		# Kicking leg (front leg) extends forward
-		var kick_extend := attack_anim_progress * 45.0
-		var kick_lift := attack_anim_progress * 12.0
-		# Front leg kicks
-		right_knee = Vector2(dir * (8.0 + kick_extend * 0.4), KNEE_Y - kick_lift * 0.5)
-		right_foot = Vector2(dir * (10.0 + kick_extend), KNEE_Y - kick_lift)
-		# Back leg stays planted
-		left_knee = Vector2(-3.0 * dir, KNEE_Y)
-		left_foot = Vector2(-4.0 * dir, FOOT_Y)
+		# Realistic 3-phase kick:
+		# Phase 1 (0-0.25): Chamber - knee lifts up toward chest
+		# Phase 2 (0.25-0.6): Snap - lower leg extends outward from knee
+		# Phase 3 (0.6-1.0): Retract - leg pulls back
+		var p := attack_anim_progress
+		var chamber := clampf(p / 0.25, 0.0, 1.0)
+		var snap := clampf((p - 0.25) / 0.35, 0.0, 1.0)
+		var retract := clampf((p - 0.6) / 0.4, 0.0, 1.0)
+
+		# Knee rises up and forward during chamber, stays during snap, lowers on retract
+		var knee_up := chamber * 22.0 - retract * 16.0
+		var knee_fwd := chamber * 12.0 + snap * 8.0 - retract * 14.0
+		# Foot: tucked behind knee during chamber, snaps straight out, retracts
+		var foot_fwd := snap * 42.0 - retract * 32.0
+		var foot_up := chamber * 20.0 - retract * 14.0
+		# During chamber, foot tucks up near knee (bent leg)
+		var foot_tuck_back := (1.0 - snap) * chamber * 10.0
+
+		right_knee = Vector2(dir * (6.0 + knee_fwd), KNEE_Y - knee_up)
+		right_foot = Vector2(
+			dir * (6.0 + knee_fwd + foot_fwd - foot_tuck_back),
+			KNEE_Y - foot_up + (1.0 - snap) * 4.0
+		)
+		# Support leg bends slightly for balance
+		left_knee = Vector2((-4.0 - chamber * 2.0) * dir, KNEE_Y + chamber * 3.0)
+		left_foot = Vector2(-5.0 * dir, FOOT_Y)
 	else:
 		# Normal legs with walk cycle
 		left_knee = Vector2((-3.0 + walk_phase * 4.0) * dir, KNEE_Y)
@@ -341,10 +358,17 @@ func _draw() -> void:
 	_draw_limb(right_knee, right_foot, pants_color, LIMB_WIDTH)
 	draw_circle(right_foot, FOOT_RADIUS, shoe_color)
 
-	# Kick impact effect
-	if is_attacking and attack_type == "kick" and attack_anim_progress > 0.5:
+	# Kick impact effect - peaks during the snap phase
+	if is_attacking and attack_type == "kick" and attack_anim_progress > 0.3 and attack_anim_progress < 0.7:
 		var impact_pos := right_foot + Vector2(dir * 6.0, 0)
-		draw_circle(impact_pos, 6.0 * attack_anim_progress, Color(1, 0.9, 0.2, 0.7 * attack_anim_progress))
+		var strength := 1.0 - abs(attack_anim_progress - 0.5) / 0.2
+		strength = clampf(strength, 0.0, 1.0)
+		draw_circle(impact_pos, 7.0 * strength, Color(1, 0.9, 0.2, 0.6 * strength))
+		# Speed lines behind the foot during snap
+		if strength > 0.3:
+			for i in 3:
+				var lx := right_foot.x - dir * (8.0 + i * 7.0)
+				draw_line(Vector2(lx, right_foot.y - 1), Vector2(lx - dir * 10.0, right_foot.y - 1), Color(1, 1, 1, 0.25 * strength), 1.5)
 
 	# ── TORSO ──
 	var torso_rect := Rect2(-TORSO_HALF_W, TORSO_TOP, TORSO_HALF_W * 2, TORSO_BOTTOM - TORSO_TOP)
